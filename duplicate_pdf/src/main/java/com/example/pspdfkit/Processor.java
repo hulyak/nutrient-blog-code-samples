@@ -56,7 +56,7 @@ public final class Processor {
     final Request request = new Request.Builder()
       .url("https://api.nutrient.io/build")
       .method("POST", body)
-      .addHeader("Authorization", "Bearer YOUR API KEY HERE")
+      .addHeader("Authorization", "Bearer pdf_live_TK4VeBhzh4K7hq0wBjJuvfiekbOb62TqwjGycFYqA5Y")
       .build();
 
     final OkHttpClient client = new OkHttpClient()
