@@ -1,0 +1,40 @@
+.navigation {
+  display: flex;
+  list-style: none;
+  padding: 10px;
+  margin: 0;
+  background: #333;
+  gap: 20px;
+}
+
+.navigation__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: white;
+}
+
+.navigation__item a {
+  color: white;
+  text-decoration: none;
+  padding: 5px 10px;
+  background: #555;
+  border-radius: 4px;
+}
+
+.navigation__item input {
+  width: 50px;
+  padding: 5px;
+  text-align: center;
+}
+
+.zoom {
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+.canvas__container {
+  display: block;
+  margin: 20px auto;
+  border: 1px solid #ccc;
+}

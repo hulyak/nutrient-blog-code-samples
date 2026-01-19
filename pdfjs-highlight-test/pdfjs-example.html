@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>PDF.js Highlight Annotations</title>
+    <script src="./pdf.mjs" type="module"></script>
+    <style>
+      body {
+        margin: 0;
+        padding: 20px;
+        position: relative;
+      }
+      #canvas {
+        border: 1px solid #ccc;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Canvas to place the PDF -->
+    <canvas id="canvas"></canvas>
+
+    <script type="module">
+      import * as pdfjsLib from './pdf.mjs';
+
+      // Get the canvas element.
+      const canvas = document.getElementById("canvas");
+
+      // Get the PDF file URL.
+      const pdfUrl = "annotation.pdf"; // Replace with the URL of your PDF document
+
+      // Configure the PDF.js worker source.
+      pdfjsLib.GlobalWorkerOptions.workerSrc = "./pdf.worker.mjs";
+
+      // Load the PDF file using PDF.js.
+      pdfjsLib.getDocument(pdfUrl).promise.then(function (pdfDoc) {
+        // Get the first page of the PDF file.
+        pdfDoc.getPage(1).then(function (page) {
+          const viewport = page.getViewport({ scale: 1 });
+
+          // Set the canvas dimensions to match the PDF page size.
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+
+          // Set the canvas rendering context.
+          const ctx = canvas.getContext("2d");
+
+          const renderContext = {
+            canvasContext: ctx,
+            viewport: viewport,
+          };
+
+          // Render the PDF page to the canvas.
+          page.render(renderContext).promise.then(function () {
+            console.log("Rendering complete");
+            // Call the function to render highlight annotations after the PDF page is rendered.
+            renderHighlightAnnotations(page, viewport);
+          });
+        });
+      });
+
+      function renderHighlightAnnotations(page, viewport) {
+        page.getAnnotations().then(function (annotations) {
+          console.log("Found annotations:", annotations);
+          annotations.forEach(function (annotation) {
+            if (annotation.subtype === "Highlight") {
+              const highlightRect = annotation.rect;
+              const highlight = document.createElement("div");
+              highlight.style.position = "absolute";
+              // Adjust coordinates based on canvas position and viewport transform
+              const canvasRect = canvas.getBoundingClientRect();
+              highlight.style.left = (canvasRect.left + highlightRect[0]) + "px";
+              // PDF coordinates are bottom-up, so we need to flip
+              highlight.style.top = (canvasRect.top + (viewport.height - highlightRect[3])) + "px";
+              highlight.style.width = (highlightRect[2] - highlightRect[0]) + "px";
+              highlight.style.height = (highlightRect[3] - highlightRect[1]) + "px";
+              highlight.style.backgroundColor = "yellow";
+              highlight.style.opacity = "0.5";
+              highlight.style.pointerEvents = "none";
+              document.body.appendChild(highlight);
+              console.log("Added highlight at:", highlightRect);
+            }
+          });
+        });
+      }
+    </script>
+  </body>
+</html>

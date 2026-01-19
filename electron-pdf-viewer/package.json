@@ -1,0 +1,15 @@
+{
+    "name": "electron-pdfjs-viewer",
+    "version": "1.0.0",
+    "description": "A desktop PDF viewer",
+    "main": "src/main.js",
+    "scripts": {
+        "start": "electron ."
+    },
+    "devDependencies": {
+        "electron": "^39.2.7"
+    },
+    "dependencies": {
+        "pdfjs-dist": "^5.4.530"
+    }
+}

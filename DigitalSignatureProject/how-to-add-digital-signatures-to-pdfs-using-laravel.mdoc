@@ -1,0 +1,659 @@
+---
+title: "How to add digital signatures to PDFs using Laravel"
+description: "Learn how to add secure digital signatures to PDF documents in Laravel using X.509 certificates, PKCS#7 format, and the Nutrient Web SDK."
+preview_image: "@/assets/images/blog/2023/how-to-add-a-digital-signature-to-pdf-using-laravel/article-header.png"
+section: blog
+author:
+  - Hulya Masharipov
+author_url:
+  - https://www.linkedin.com/in/hulya-Masharipov/
+date: 2023-11-15 10:00 UTC
+categories:
+  - SDK
+  - Tutorials
+tags:
+  - Web
+  - Laravel
+  - Signing
+  - How To
+published: true
+secret: false
+converted_from: "pspdfkit"
+converted_at: "2025-05-29"
+converted_by_git_ref: "3a2d1b973"
+converted_from_path: "how-to-add-a-digital-signature-to-pdf-using-laravel.html.md.erb"
+---
+
+{% postTLDR %}
+This tutorial compares two approaches for adding digital signatures to PDFs in Laravel: Intervention Image for basic image-based signatures, and Nutrient's Laravel PDF library for secure digital signatures. Intervention Image offers simple visual signatures, while Nutrient provides certificate-based signatures with timestamp validation and regulatory compliance. Choose Intervention Image for basic needs and Nutrient for enterprise-level document security requirements.
+{% /postTLDR %}
+
+{% alert type="neutral-gray" line="single-line" %}
+**Quick start**: Begin with [PHP PDF viewer basics][php pdf viewer], explore [Laravel PDF generation][laravel pdf generation], or dive into [advanced electronic signatures][advanced signatures].
+{% /alert %}
+
+In this tutorial, you'll learn how to add digital signatures to PDF documents using Laravel. It'll cover two methods: one using the [Intervention Image library][], and another leveraging the [Nutrient Laravel PDF digital signature library][library].
+
+## What are digital certificates?
+
+Digital certificates work like electronic identification cards. They're used to confirm the legitimacy of online transactions, communications, and documents. A digital certificate contains the following:
+
+- **Public key** — An openly shared cryptographic key used for encrypting data.
+- **Private key** — A closely guarded key used for decrypting encrypted data and creating digital signatures.
+- **Issuer information** — Details about the certificate authority (CA) that issued the certificate, accompanied by the digital signature.
+- **Certificate holder information** — Identity details of the certificate owner.
+
+## Importance of digital certificates for digital signatures
+
+Digital certificates are important for several reasons:
+
+1. **Authentication** — Think of digital certificates as the online equivalent of showing your ID. They ensure the identity of the signer.
+2. **Non-repudiation** — When you sign something digitally, you can't later deny it. The certificate provides undeniable proof.
+3. **Integrity** — Once a document is signed, any modifications are detectable, preserving the document's integrity.
+4. **Encryption** — Private keys safeguard your digital signature, making it nearly impossible to fake.
+5. **Trust** — Certificates are issued by trusted entities (CAs), building trust in the validity of signatures.
+6. **Global acceptance** — Digital certificates are universally accepted, making them suitable for international transactions.
+
+## How digital certificates work in digital signatures
+
+When you digitally sign a document, your private key generates a unique signature. This signature, along with your digital certificate, is attached to the document. When someone receives the document, they use the public key from your certificate to verify the signature's authenticity and ensure the document hasn't been tampered with.
+
+In summary, digital certificates serve as digital IDs that validate the authenticity of digital signatures. They establish trust, ensure accountability, and safeguard the integrity of electronic transactions and documents.
+
+> Learn more about this in our blog post on the topic, [PDF advanced electronic signatures, and why your business needs them][advanced signatures].
+
+## Intervention Image library
+
+The Intervention Image library is primarily designed for image manipulation, offering various image editing functionalities within Laravel applications. While you can use Intervention Image to overlay an image (a signature in this case) onto a PDF image, it's not tailored specifically for handling the complexities of creating valid and secure digital signatures, and it might lack advanced features for working with PDF structures and cryptography.
+
+## Prerequisites
+
+To get started, you'll need:
+
+- The latest stable version of [Node.js][]
+- A package manager compatible with [npm]
+- PHP and Composer
+- Laravel installer
+
+Make sure you have PHP installed on your system. You can check if PHP is installed by running `php -v` in your terminal. If it's not installed, download and install it from the [official PHP website][php].
+
+After installing PHP, you'll need Composer, a dependency management tool for PHP. Follow the installation instructions on the [Composer website][composer] to install Composer.
+
+Laravel provides a command-line tool called `laravel` that makes it easy to create new projects. You can install this tool globally using Composer:
+
+```bash
+composer global require laravel/installer
+```
+
+Make sure Composer's global binaries directory is in your system's `PATH` so that you can access the `laravel` command from anywhere:
+
+```bash
+export PATH="$HOME/.composer/vendor/bin:$PATH"
+```
+
+## Step 1 — Setting up your Laravel project
+
+Start by creating a new Laravel project. Open your terminal and run the following command:
+
+```bash
+laravel new DigitalSignatureProject
+```
+
+Press enter to accept default options when prompted. This command will create a new Laravel project named `DigitalSignatureProject`.
+
+Navigate to the project directory:
+
+```bash
+cd DigitalSignatureProject
+```
+
+## Step 2 — Installing the required libraries
+
+Install the Intervention Image library with Laravel integration, along with FPDF for PDF generation:
+
+```bash
+composer require intervention/image-laravel setasign/fpdf
+```
+
+{% alert type="info" %}
+**Note:** For PDF-to-image conversion, you'll also need the Imagick PHP extension. Install it with `pecl install imagick` (macOS) or `apt-get install php-imagick` (Ubuntu).
+{% /alert %}
+
+## Step 3 — Generating the controller and routes
+
+Generate a controller named `SignatureController` using the following command:
+
+```bash
+php artisan make:controller SignatureController
+```
+
+Open the `routes/web.php` file and define the routes for displaying the signature form and saving the signature:
+
+```php
+use App\Http\Controllers\SignatureController;
+
+Route::get('/signature-form', [SignatureController::class, 'showForm'])->name('signature.form');
+Route::post('/save-signature', [SignatureController::class, 'saveSignature'])->name('save.signature');
+```
+
+## Step 4 — Creating the SignatureController
+
+In `SignatureController`, implement the methods to display the form and save the signature. This uses Intervention Image v3 syntax:
+
+```php
+// app/Http/Controllers/SignatureController.php
+
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use Intervention\Image\ImageManager;
+use Intervention\Image\Drivers\Gd\Driver;
+
+class SignatureController extends Controller
+{
+    public function showForm()
+    {
+        // Get existing page images from public/pages directory.
+        $pagesPath = public_path('pages');
+        $images = [];
+
+        if (is_dir($pagesPath)) {
+            $files = glob($pagesPath . '/page*.{jpg,png}', GLOB_BRACE);
+            sort($files, SORT_NATURAL);
+
+            foreach ($files as $index => $file) {
+                $images[] = [
+                    'number' => $index + 1,
+                    'url' => asset('pages/' . basename($file))
+                ];
+            }
+        }
+
+        if (empty($images)) {
+            $images[] = ['number' => 1, 'url' => null];
+        }
+
+        return view('signature', compact('images'));
+    }
+
+    public function saveSignature(Request $request)
+    {
+        $request->validate([
+            'signature' => 'required|image|mimes:png,jpg,jpeg|max:2048',
+            'page_number' => 'nullable|integer|min:1',
+            'x_position' => 'nullable|integer|min:0',
+            'y_position' => 'nullable|integer|min:0',
+        ]);
+
+        $pageNumber = $request->input('page_number', 1);
+        $xPosition = $request->input('x_position', 100);
+        $yPosition = $request->input('y_position', 100);
+
+        $pageImagePath = public_path("pages/page{$pageNumber}.jpg");
+
+        if (!file_exists($pageImagePath)) {
+            $pageImagePath = $this->createPlaceholderPage($pageNumber);
+        }
+
+        // Initialize Intervention Image with GD driver.
+        $manager = new ImageManager(new Driver());
+
+        // Load the page image.
+        $pageImage = $manager->read($pageImagePath);
+
+        // Load and resize the signature.
+        $signatureFile = $request->file('signature');
+        $signatureImage = $manager->read($signatureFile->getPathname());
+        $signatureImage->scale(width: 200);
+
+        // Insert signature onto page.
+        $pageImage->place($signatureImage, 'top-left', $xPosition, $yPosition);
+
+        // Save the signed image.
+        $signedDir = public_path('signed');
+        if (!is_dir($signedDir)) {
+            mkdir($signedDir, 0755, true);
+        }
+
+        $signedImagePath = $signedDir . "/signed_page{$pageNumber}.jpg";
+        $pageImage->save($signedImagePath, quality: 90);
+
+        // Create PDF from the signed image.
+        $this->createPdfFromImage($signedImagePath, $pageNumber);
+
+        return redirect()->route('signature.form')->with('success', 'Signature added successfully');
+    }
+
+    private function createPlaceholderPage(int $pageNumber): string
+    {
+        $pagesDir = public_path('pages');
+        if (!is_dir($pagesDir)) {
+            mkdir($pagesDir, 0755, true);
+        }
+
+        $manager = new ImageManager(new Driver());
+        $image = $manager->create(595, 842)->fill('ffffff');
+
+        $path = $pagesDir . "/page{$pageNumber}.jpg";
+        $image->save($path, quality: 90);
+
+        return $path;
+    }
+
+    private function createPdfFromImage(string $imagePath, int $pageNumber): void
+    {
+        require_once base_path('vendor/setasign/fpdf/fpdf.php');
+
+        $pdf = new \FPDF('P', 'pt', 'A4');
+        $pdf->AddPage();
+
+        list($imgWidth, $imgHeight) = getimagesize($imagePath);
+
+        $pageWidth = 595.28;
+        $pageHeight = 841.89;
+
+        $scale = min($pageWidth / $imgWidth, $pageHeight / $imgHeight);
+        $newWidth = $imgWidth * $scale;
+        $newHeight = $imgHeight * $scale;
+
+        $x = ($pageWidth - $newWidth) / 2;
+        $y = ($pageHeight - $newHeight) / 2;
+
+        $pdf->Image($imagePath, $x, $y, $newWidth, $newHeight);
+        $pdf->Output('F', public_path("signed/signed_page{$pageNumber}.pdf"));
+    }
+}
+```
+
+## Step 5 — Displaying the signature form
+
+Create a form in a view file named `signature.blade.php` to allow users to upload their signature:
+
+```html
+<!-- resources/views/signature.blade.php -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Signature</title>
+</head>
+<body>
+    <h1>Upload Your Signature</h1>
+
+    @if(session('success'))
+        <p style="color: green;">{{ session('success') }}</p>
+    @endif
+
+    @if(session('error'))
+        <p style="color: red;">{{ session('error') }}</p>
+    @endif
+
+    <form action="{{ route('save.signature') }}" method="POST" enctype="multipart/form-data">
+        @csrf
+        <div>
+            <label for="signature">Select your signature image:</label>
+            <input type="file" name="signature" id="signature" accept="image/png,image/jpeg" required>
+        </div>
+        <div>
+            <label for="page_number">Page Number:</label>
+            <input type="number" name="page_number" id="page_number" value="1" min="1">
+        </div>
+        <div>
+            <label for="x_position">X Position:</label>
+            <input type="number" name="x_position" id="x_position" value="100" min="0">
+        </div>
+        <div>
+            <label for="y_position">Y Position:</label>
+            <input type="number" name="y_position" id="y_position" value="100" min="0">
+        </div>
+        <button type="submit">Add Signature to PDF</button>
+    </form>
+
+    <h2>PDF Pages</h2>
+    @foreach($images as $image)
+        @if($image['url'])
+            <img src="{{ $image['url'] }}" alt="Page {{ $image['number'] }}" style="max-width: 100%; margin: 10px 0;">
+        @else
+            <p>No PDF loaded. Place page images in public/pages/ directory.</p>
+        @endif
+    @endforeach
+</body>
+</html>
+```
+
+## Step 6 — Displaying the result
+
+After uploading a signature, the signed image and PDF will be saved in the `public/signed/` directory. Users can download the signed PDF from there.
+
+You've successfully implemented the process of adding a visual signature to a PDF using Laravel and Intervention Image. Note that this creates a visual overlay, not a cryptographic digital signature.
+
+## Nutrient as a better solution
+
+Nutrient's [digital signatures SDK][sdk] is designed specifically for PDF documents and provides secure, compliant digital signature capabilities. Digital signatures enhance the security and authenticity of your PDF documents, making them suitable for business and legal use cases. Now you'll learn how to add digital signatures using Nutrient.
+
+## Setup
+
+1. Create a new Laravel project:
+
+   ```bash
+   laravel new nutrient-app
+   ```
+
+   Press enter to accept default options when prompted.
+
+2. Change to the created project directory:
+
+   ```bash
+   cd nutrient-app
+   ```
+
+## Adding Nutrient to your project
+
+1. Install Nutrient Web SDK using npm:
+
+   ```bash
+   npm install @nutrient-sdk/viewer
+   ```
+
+2. Copy the Nutrient Web SDK distribution to the `/public/assets/` directory in your project's folder:
+
+   ```bash
+   mkdir public/assets && cp -R ./node_modules/@nutrient-sdk/viewer/dist/* ./public/assets/
+   ```
+
+Make sure your `/public/assets/` directory contains the `nutrient-viewer.js` file and a `nutrient-viewer-lib` directory with the library assets.
+
+## Displaying a PDF
+
+1. Rename the PDF document you want to display in your application to `document.pdf`, and then add the PDF document to the public directory. You can use [this demo document](/example.pdf) as an example.
+
+2. Navigate to the `resources/views/welcome.blade.php` file.
+
+3. Add an empty `<div>` element with a defined height to where Nutrient will be mounted:
+
+   ```html
+   <div id="nutrient" style="height: 100vh"></div>
+   ```
+
+4. Include `nutrient-viewer.js` on the `welcome.blade.php` page:
+
+   ```html
+   <script src="assets/nutrient-viewer.js"></script>
+   ```
+
+5. Initialize Nutrient Web SDK in Laravel by calling `NutrientViewer.load()`:
+
+   ```html
+   <script>
+       NutrientViewer.load({
+           container: "#nutrient",
+           document: "document.pdf"
+       })
+       .then(function(instance) {
+           console.log("Nutrient loaded", instance);
+       })
+       .catch(function(error) {
+           console.error(error.message);
+       });
+   </script>
+   ```
+
+6. Run the following command to start the Laravel development server:
+
+   ```bash
+   php artisan serve
+   ```
+
+Navigate to `http://127.0.0.1:8000` to view the website.
+
+## Adding a digital signature to a PDF using Nutrient
+
+Nutrient requires an [X.509 certificate][cert] and a private key pair for adding a digital signature to a PDF document. Follow the steps below to do this.
+
+### Step 1 — Generating a self-signed certificate and private key
+
+You can generate a self-signed certificate and private key using [OpenSSL][], which is a widely used tool for working with certificates and keys. Here's how you can generate them:
+
+1. Open your terminal in the project directory.
+
+2. Run the following OpenSSL command to generate a self-signed certificate and private key:
+
+```bash
+openssl req -x509 -sha256 -nodes -newkey rsa:2048 -keyout public/private-key.pem -out public/cert.pem
+```
+
+- `-x509` — Tells OpenSSL to create a self-signed certificate.
+- `-sha256` — Specifies the hash function to use for the certificate.
+- `-nodes` — Prevents encryption of the private key. You can remove this option for production keys if encryption is desired.
+- `-newkey rsa:2048` — Generates a new RSA private key with a key size of 2,048 bits.
+- `-keyout public/private-key.pem` — Specifies the name and location of the private key file.
+- `-out public/cert.pem` — Specifies the name and location of the certificate file.
+
+Follow the prompts to provide information for the certificate, such as the Common Name (CN), organization, and location. These details will be embedded in the certificate.
+
+### Step 2 — Verifying your certificate
+
+After generating the certificate and private key, you can verify if the certificate is correctly PEM-encoded using the following command:
+
+```bash
+openssl x509 -noout -text -in public/cert.pem
+```
+
+This command will display certificate details and shouldn't produce any errors. It confirms that `cert.pem` is a PEM-encoded X.509 certificate.
+
+With these steps, you'll have generated the required X.509 certificate and private key pair for adding digital signatures to your PDF documents. Ensure that you store these files securely, as they're essential for signing documents.
+
+For more information on adding a digital signature to a PDF using Nutrient, refer to our [digital signatures][guide] guide.
+
+## Signing a PDF document using Nutrient
+
+To add a digital signature to your PDF document using Nutrient, follow the steps below.
+
+### Step 1 — Including the Forge library
+
+To work with cryptography and digital signatures, you need to include the Forge library in your project. You can add it to your HTML file with the following script tag:
+
+```html
+<script src="https://cdn.jsdelivr.net/npm/node-forge@1.0.0/dist/forge.min.js"></script>
+```
+
+### Step 2 — Generating a PKCS#7 signature
+
+Nutrient utilizes the cryptographic Distinguished Encoding Rules (DER) [PKCS#7][pkcs] format for digital signatures. You'll need to create a valid PKCS#7 signature containing your certificate and other relevant information.
+
+Define a function, `generatePKCS7`, to generate the digital signature for your PDF. This function will perform the necessary cryptographic operations:
+
+```js
+function generatePKCS7({ fileContents }) {
+  const certificatePromise = fetch("cert.pem").then((response) =>
+    response.text(),
+  );
+  const privateKeyPromise = fetch("private-key.pem").then((response) =>
+    response.text(),
+  );
+
+  return new Promise((resolve, reject) => {
+    Promise.all([certificatePromise, privateKeyPromise])
+      .then(([certificatePem, privateKeyPem]) => {
+        const certificate = forge.pki.certificateFromPem(certificatePem);
+        const privateKey = forge.pki.privateKeyFromPem(privateKeyPem);
+
+        const p7 = forge.pkcs7.createSignedData();
+        p7.content = new forge.util.ByteBuffer(fileContents);
+        p7.addCertificate(certificate);
+        p7.addSigner({
+          key: privateKey,
+          certificate: certificate,
+          digestAlgorithm: forge.pki.oids.sha256,
+          authenticatedAttributes: [
+            {
+              type: forge.pki.oids.contentType,
+              value: forge.pki.oids.data,
+            },
+            {
+              type: forge.pki.oids.messageDigest,
+            },
+            {
+              type: forge.pki.oids.signingTime,
+              value: new Date(),
+            },
+          ],
+        });
+
+        p7.sign({ detached: true });
+
+        const result = stringToArrayBuffer(
+          forge.asn1.toDer(p7.toAsn1()).getBytes(),
+        );
+
+        resolve(result);
+      })
+      .catch(reject);
+  });
+}
+```
+
+This function fetches your certificate and private key, and then it uses Forge to create a PKCS#7 signed data structure.
+
+### Step 3 — Converting a string to an array buffer
+
+You'll need a utility function, `stringToArrayBuffer`, to convert a binary string into an `ArrayBuffer`:
+
+```js
+function stringToArrayBuffer(binaryString) {
+  const buffer = new ArrayBuffer(binaryString.length);
+  let bufferView = new Uint8Array(buffer);
+
+  for (let i = 0, len = binaryString.length; i < len; i++) {
+    bufferView[i] = binaryString.charCodeAt(i);
+  }
+
+  return buffer;
+}
+```
+
+### Step 4 — Initializing Nutrient and signing the document
+
+Now, you can initialize Nutrient and invoke the [`NutrientViewer.Instance#signDocument`][method] method. This method takes two arguments.
+
+- **Argument 1** — You can use this argument to fine-tune the signing process by providing essential data, such as certificates and private keys. If you don't have specific signing requirements, you can pass `null`.
+- **Argument 2** — In the second argument, supply `fileContents`. This parameter is used as a callback object containing an `ArrayBuffer` housing the document's content. The method returns a promise that resolves to the `ArrayBuffer` or rejects if an error arises:
+
+```js
+NutrientViewer.load({
+    container: "#nutrient",
+    document: "document.pdf"
+})
+.then(function(instance) {
+    console.log("Nutrient loaded", instance);
+
+    instance
+        .signDocument(null, generatePKCS7)
+        .then(() => {
+            console.log('Document signed.');
+        })
+        .catch((error) => {
+            console.error('The document could not be signed.', error);
+        });
+})
+.catch((error) => {
+    console.error(error.message);
+});
+```
+
+This code initiates the signing process. Upon successful completion, you'll see the message `Document signed.` in the console. In case of errors during the signing process, an error message will be logged.
+
+After successfully building and implementing this code, the signing process will run automatically, and the document will reload with the freshly added digital signature.
+
+> We recently added support for [CAdES](https://en.wikipedia.org/wiki/CAdES_\(computing\))-based signatures, which are advanced digital signatures. To learn more about them, check out our [guide].
+
+## Conclusion
+
+In this tutorial, you learned about two methods for adding digital signatures to PDFs in Laravel: Intervention Image for simpler needs, and Nutrient for advanced security and compliance.
+
+Intervention Image is great for basic image manipulation and adding visual signatures to PDFs. However, it creates image overlays rather than cryptographic signatures, and might not cover complex PDF structures.
+
+Nutrient, on the other hand, specializes in secure and compliant digital signatures within PDFs. It's the choice for businesses that demand top-notch security, compliance, and professional document handling.
+
+If you're interested in exploring Nutrient further, you can request a [free trial][] of our SDK or visit our [demo page][demo] to experience the capabilities of our product firsthand.
+
+**Related PHP/Laravel guides**
+
+- [Building PHP PDF viewers][php pdf viewer]
+- [Laravel PDF generation][laravel pdf generation]
+- [PHP PDF manipulation][php pdf tools]
+- [Laravel document processing][laravel docs]
+
+**Digital signature ecosystem**
+
+- [React PDF signatures][react signatures]
+- [TypeScript PDF signatures][typescript signatures]
+- [Advanced electronic signatures][advanced signatures]
+
+**Security and compliance**
+
+- [PDF permissions and encryption][pdf encryption]
+- [Document redaction techniques][pdf redaction]
+- [Certificate-based authentication][certificate auth]
+- [Accessibility, untangled][]
+
+## FAQ
+
+{% accordion faqSchema=true %}
+{% accordionitem
+   title="How can I add a digital signature to a PDF using Laravel?" %}
+To add a digital signature to a PDF in Laravel, you can use libraries like `Intervention Image` for basic image overlay or `Nutrient` for a more secure and compliant approach.
+{% /accordionitem %}
+
+{% accordionitem
+   title="What are the best libraries for handling PDFs in Laravel?" %}
+Popular libraries for handling PDFs in Laravel include `Intervention Image` for image manipulation and `Nutrient` for advanced PDF features and digital signatures.
+{% /accordionitem %}
+
+{% accordionitem
+   title="What is the role of a digital certificate in digital signatures?" %}
+A digital certificate verifies the identity of the signer and ensures the document's integrity through cryptographic means.
+{% /accordionitem %}
+
+{% accordionitem
+   title="How can I generate a self-signed certificate for digital signatures?" %}
+You can generate a self-signed certificate using OpenSSL with the following command:
+`openssl req -x509 -sha256 -nodes -newkey rsa:2048 -keyout private-key.pem -out cert.pem`
+{% /accordionitem %}
+
+{% accordionitem
+   title="How do I set up Nutrient for signing a PDF document?" %}
+Install `Nutrient` using `npm`, include it in your project, and use the `NutrientViewer.load()` method to initialize it and sign the document with a PKCS#7 signature.
+{% /accordionitem %}
+{% /accordion %}
+
+[intervention image library]: https://github.com/Intervention/image
+[composer]: https://getcomposer.org/download/
+[php]: https://www.php.net/downloads.php
+[sdk]: /sdk/solutions/signing/
+[node.js]: https://nodejs.org/en/download
+[npm]: https://docs.npmjs.com/about-npm
+[openssl]: https://www.openssl.org/
+[cert]: https://en.wikipedia.org/wiki/X.509
+[guide]: /guides/web/signatures/digital-signatures/signature-lifecycle/sign-a-pdf-document/
+[pkcs]: https://www.ietf.org/rfc/rfc2315.html
+[method]: /api/web/NutrientViewer.Instance.html#signDocument
+[library]: /guides/web/signatures/laravel/
+[demo]: /demo/
+[free trial]: /try/
+[cades]: https://en.wikipedia.org/wiki/CAdES_(computing)
+[php pdf viewer]: /blog/free-ways-to-create-php-pdf-viewer/
+[laravel pdf generation]: /blog/how-to-build-a-laravel-pdf-viewer-with-nutrient/
+[php pdf tools]: /blog/how-to-build-a-php-pdf-viewer/
+[laravel docs]: /blog/how-to-build-a-laravel-image-viewer/
+[react signatures]: /blog/how-to-add-digital-signature-to-pdf-using-react/
+[typescript signatures]: /blog/how-to-add-digital-signature-to-pdf-using-typescript/
+[advanced signatures]: /blog/pdf-advanced-electronic-signatures/
+[pdf encryption]: /blog/pdf-permissions-vs-encryption/
+[pdf redaction]: /blog/document-redaction/
+[certificate auth]: /blog/digital-signatures/
+[accessibility, untangled]: /blog/accessibility-untangled-why-it-matters-guide/

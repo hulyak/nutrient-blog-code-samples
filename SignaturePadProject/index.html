@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Nutrient Signature Pad</title>
+        <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no"
+        />
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            }
+            .toolbar {
+                background: #2c3e50;
+                padding: 10px 20px;
+                display: flex;
+                gap: 10px;
+                align-items: center;
+            }
+            .toolbar button {
+                background: #3498db;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 14px;
+            }
+            .toolbar button:hover {
+                background: #2980b9;
+            }
+            .toolbar .status {
+                color: #ecf0f1;
+                margin-left: auto;
+                font-size: 14px;
+            }
+            #nutrient {
+                height: calc(100vh - 50px);
+            }
+        </style>
+    </head>
+    <body>
+        <div class="toolbar">
+            <button onclick="addInkSignature()">Add Ink Signature</button>
+            <button onclick="addImageSignature()">Add Image Signature</button>
+            <button onclick="addSignatureField()">Add Signature Field</button>
+            <span class="status" id="status">Ready</span>
+        </div>
+
+        <div id="nutrient"></div>
+
+        <script src="https://cdn.cloud.pspdfkit.com/pspdfkit-web@1.10.0/nutrient-viewer.js"></script>
+        <script>
+            let instance = null;
+            const NutrientViewer = window.NutrientViewer;
+
+            function updateStatus(message) {
+                document.getElementById('status').textContent = message;
+            }
+
+            async function loadNutrient() {
+                try {
+                    if (typeof NutrientViewer === 'undefined') {
+                        throw new Error('NutrientViewer failed to load');
+                    }
+
+                    // Ensure there's only one instance
+                    NutrientViewer.unload('#nutrient');
+
+                    instance = await NutrientViewer.load({
+                        container: '#nutrient',
+                        document: 'document.pdf',
+                    });
+
+                    console.log('Nutrient loaded', instance);
+                    updateStatus('Document loaded - Ready');
+                } catch (error) {
+                    console.error(error.message);
+                    updateStatus('Error: ' + error.message);
+                }
+            }
+
+            // Add Ink Signature
+            async function addInkSignature() {
+                console.log('addInkSignature called, instance:', instance);
+                if (!instance) {
+                    alert('Please wait for the document to load');
+                    return;
+                }
+
+                try {
+                    updateStatus('Adding ink signature...');
+                    console.log('NutrientViewer.Annotations:', NutrientViewer.Annotations);
+
+                    const inkAnnotation = new NutrientViewer.Annotations.InkAnnotation({
+                        pageIndex: 0,
+                        isSignature: true,
+                        lines: NutrientViewer.Immutable.List([
+                            NutrientViewer.Immutable.List([
+                                new NutrientViewer.Geometry.DrawingPoint({ x: 5, y: 5 }),
+                                new NutrientViewer.Geometry.DrawingPoint({ x: 95, y: 95 }),
+                            ]),
+                            NutrientViewer.Immutable.List([
+                                new NutrientViewer.Geometry.DrawingPoint({ x: 95, y: 5 }),
+                                new NutrientViewer.Geometry.DrawingPoint({ x: 5, y: 95 }),
+                            ]),
+                        ]),
+                        boundingBox: new NutrientViewer.Geometry.Rect({
+                            left: 0,
+                            top: 0,
+                            width: 100,
+                            height: 100,
+                        }),
+                    });
+
+                    const createdAnnotations = await instance.create(inkAnnotation);
+                    console.log('Ink annotation created:', createdAnnotations);
+
+                    // Get all annotations to verify
+                    const annotations = await instance.getAnnotations(0);
+                    console.log('All annotations on page 0:', annotations.toJS());
+
+                    updateStatus('Ink signature added!');
+                } catch (error) {
+                    console.error('Failed to add ink signature:', error);
+                    updateStatus('Error: ' + error.message);
+                }
+            }
+
+            // Add Image Signature
+            async function addImageSignature() {
+                if (!instance) {
+                    alert('Please wait for the document to load');
+                    return;
+                }
+
+                try {
+                    updateStatus('Adding image signature...');
+
+                    // Fetch the signature image
+                    const request = await fetch('signature.png');
+                    if (!request.ok) {
+                        throw new Error('Please add a signature.png file to the project directory');
+                    }
+                    const blob = await request.blob();
+                    const attachmentId = await instance.createAttachment(blob);
+
+                    const imageAnnotation = new NutrientViewer.Annotations.ImageAnnotation({
+                        pageIndex: 0,
+                        contentType: 'image/png',
+                        imageAttachmentId: attachmentId,
+                        description: 'Signature Image',
+                        boundingBox: new NutrientViewer.Geometry.Rect({
+                            left: 200,
+                            top: 500,
+                            width: 200,
+                            height: 100,
+                        }),
+                    });
+
+                    await instance.create(imageAnnotation);
+                    console.log('Image annotation created successfully.');
+                    updateStatus('Image signature added!');
+                } catch (error) {
+                    console.error('Failed to add image signature:', error);
+                    updateStatus('Error: ' + error.message);
+                }
+            }
+
+            // Add Signature Form Field
+            async function addSignatureField() {
+                if (!instance) {
+                    alert('Please wait for the document to load');
+                    return;
+                }
+
+                try {
+                    updateStatus('Adding signature field...');
+
+                    const widget = new NutrientViewer.Annotations.WidgetAnnotation({
+                        pageIndex: 0,
+                        boundingBox: new NutrientViewer.Geometry.Rect({
+                            left: 200,
+                            top: 650,
+                            width: 250,
+                            height: 100,
+                        }),
+                        formFieldName: 'My signature form field',
+                        id: NutrientViewer.generateInstantId(),
+                    });
+
+                    const formField = new NutrientViewer.FormFields.SignatureFormField({
+                        name: 'My signature form field',
+                        annotationIds: NutrientViewer.Immutable.List([widget.id]),
+                    });
+
+                    await instance.create([widget, formField]);
+                    console.log('Signature form field created successfully.');
+                    updateStatus('Signature field added! Click it to sign.');
+                } catch (error) {
+                    console.error('Failed to add signature field:', error);
+                    updateStatus('Error: ' + error.message);
+                }
+            }
+
+            loadNutrient();
+        </script>
+    </body>
+</html>

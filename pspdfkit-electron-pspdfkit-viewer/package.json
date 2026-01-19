@@ -1,0 +1,19 @@
+{
+  "name": "pspdfkit-electron-pspdfkit-viewer",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "electron": "^39.2.7",
+    "electron-packager": "^17.1.2"
+  },
+  "dependencies": {
+    "@nutrient-sdk/viewer": "^1.10.0"
+  }
+}

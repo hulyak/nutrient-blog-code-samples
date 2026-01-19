@@ -1,0 +1,42 @@
+[00:00:03.636] Server  LOG     ✓ Ready in 3.3s
+[00:01:03.685] Server  LOG     ○ Compiling / ...
+[00:01:07.857] Browser ERROR   A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+%s%s https://react.dev/link/hydration-mismatch 
+
+  ...
+    <HotReload globalError={[...]} webSocket={WebSocket} staticIndicatorState={{pathname:null, ...}}>
+      <AppDevOverlayErrorBoundary globalError={[...]}>
+        <ReplaySsrOnlyErrors>
+        <DevRootHTTPAccessFallbackBoundary>
+          <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+            <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<NotAllowedRootHTTPFallbackError>} ...>
+              <RedirectBoundary>
+                <RedirectErrorBoundary router={{...}}>
+                  <Head>
+                  <__next_root_layout_boundary__>
+                    <SegmentViewNode type="layout" pagePath="layout.js">
+                      <SegmentTrieNode>
+                      <RootLayout>
+                        <html lang="en">
+                          <body
+                            style={{margin:0}}
+-                           __processed_aefe0ec3-31ba-414c-bf82-9d88ddbe3042__="true"
+-                           bis_register="W3sibWFzdGVyIjp0cnVlLCJleHRlbnNpb25JZCI6InBwaGdkYmdsZGxtaWNmZGtob25kbGFma2lv..."
+                          >
+                  ...
+
+[00:01:07.857] Browser WARN    Copying assets from the npm package is deprecated and will be removed in a future releases.
+
+Please refer to the guide for more information: https://www.nutrient.io/guides/web/self-host-assets.
+[00:01:07.857] Browser INFO    Nutrient Web 1.10.0 (https://www.nutrient.io/sdk/web)
+[00:01:07.857] Browser WARN    FrameProvider: portalContainer is not a child of container. Please ensure the portalContainer is a child of the container.
+[00:01:07.857] Browser WARN    FrameProvider: container is not positioned. Please ensure the container is non-static.

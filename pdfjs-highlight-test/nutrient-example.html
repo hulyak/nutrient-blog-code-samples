@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Nutrient PDF Viewer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  </head>
+  <body>
+    <div id="nutrient" style="height: 100vh;"></div>
+
+    <script type="module">
+      import "./assets/nutrient-viewer.js";
+
+      const baseUrl = `${window.location.protocol}//${window.location.host}/assets/`;
+
+      NutrientViewer.load({
+        container: "#nutrient",
+        document: "document.pdf",
+        baseUrl,
+      })
+        .then(async function (instance) {
+          try {
+            console.log("Nutrient loaded", instance);
+            const rects = NutrientViewer.Immutable.List([
+              new NutrientViewer.Geometry.Rect({
+                left: 10,
+                top: 120,
+                width: 200,
+                height: 10,
+              }),
+              new NutrientViewer.Geometry.Rect({
+                left: 10,
+                top: 150,
+                width: 200,
+                height: 10,
+              }),
+            ]);
+            const annotation = new NutrientViewer.Annotations.HighlightAnnotation({
+              pageIndex: 0,
+              rects: rects,
+              boundingBox: NutrientViewer.Geometry.Rect.union(rects),
+            });
+            await instance.create(annotation);
+            console.log("Highlight annotation added successfully.");
+          } catch (error) {
+            console.error("Error adding highlight annotation:", error.message);
+          }
+        })
+        .catch(function (error) {
+          console.error("NutrientViewer failed to load:", error.message);
+        });
+    </script>
+  </body>
+</html>
