@@ -1,0 +1,81 @@
+# Dependencies
+node_modules/
+vendor/
+bower_components/
+
+# Build outputs
+dist/
+build/
+.next/
+.angular/
+.nuxt/
+.output/
+out/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Cache
+.cache/
+.parcel-cache/
+.eslintcache
+*.tsbuildinfo
+
+# Test coverage
+coverage/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Lock files (optional - uncomment if you don't want to track them)
+# package-lock.json
+# yarn.lock
+# composer.lock
+
+# PHP
+/storage/*.key
+.phpunit.result.cache
+
+# Python
+__pycache__/
+*.py[cod]
+.Python
+*.so
+.venv/
+venv/
+
+# Electron
+*.asar
+
+# Gradle
+.gradle/
+gradle/
+
+# Input/output documents (sample files)
+input_documents/
+output_documents/
+
+# Misc
+*.pem
+.tool-versions
