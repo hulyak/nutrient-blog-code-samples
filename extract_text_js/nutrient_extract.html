@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<title>Nutrient SDK - Text Extraction</title>
+		<style>
+			body {
+				font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+				margin: 0;
+				padding: 20px;
+				background: #f5f5f5;
+			}
+			.container {
+				max-width: 1200px;
+				margin: 0 auto;
+			}
+			h1 {
+				color: #333;
+			}
+			.pdf-viewer {
+				width: 100%;
+				height: 500px;
+				border: 1px solid #ddd;
+				margin-bottom: 20px;
+			}
+			.controls {
+				margin-bottom: 20px;
+			}
+			button {
+				background: #4a90d9;
+				color: white;
+				border: none;
+				padding: 10px 20px;
+				border-radius: 4px;
+				cursor: pointer;
+				font-size: 14px;
+				margin-right: 10px;
+			}
+			button:hover {
+				background: #357abd;
+			}
+			button:disabled {
+				background: #ccc;
+				cursor: not-allowed;
+			}
+			.output {
+				background: white;
+				border: 1px solid #ddd;
+				border-radius: 4px;
+				padding: 20px;
+				max-height: 400px;
+				overflow-y: auto;
+			}
+			.output h3 {
+				margin-top: 0;
+			}
+			pre {
+				white-space: pre-wrap;
+				word-wrap: break-word;
+				background: #f9f9f9;
+				padding: 15px;
+				border-radius: 4px;
+				font-size: 13px;
+				line-height: 1.5;
+			}
+			.status {
+				padding: 10px;
+				margin-bottom: 10px;
+				border-radius: 4px;
+			}
+			.status.loading {
+				background: #fff3cd;
+				color: #856404;
+			}
+			.status.success {
+				background: #d4edda;
+				color: #155724;
+			}
+			.status.error {
+				background: #f8d7da;
+				color: #721c24;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="container">
+			<h1>Nutrient SDK - Text Extraction Example</h1>
+
+			<div class="status loading" id="status">Loading Nutrient SDK...</div>
+
+			<div class="controls">
+				<button id="extractBtn" disabled>Extract Text from All Pages</button>
+				<button id="extractCurrentBtn" disabled>Extract from Current Page</button>
+			</div>
+
+			<div class="pdf-viewer" id="pdfContainer"></div>
+
+			<div class="output">
+				<h3>Extracted Text:</h3>
+				<pre id="extractedText">Click "Extract Text" to see the extracted content.</pre>
+			</div>
+		</div>
+
+		<!-- Load Nutrient SDK from node_modules -->
+		<script src="node_modules/@nutrient-sdk/viewer/dist/nutrient-viewer.js"></script>
+		<script>
+			let instance = null;
+
+			// Initialize Nutrient SDK
+			async function initNutrient() {
+				const statusEl = document.getElementById('status');
+				const extractBtn = document.getElementById('extractBtn');
+				const extractCurrentBtn = document.getElementById('extractCurrentBtn');
+
+				try {
+					// Sample PDF URL (same as PDF.js examples)
+					const pdfUrl =
+						'https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/web/compressed.tracemonkey-pldi-09.pdf';
+
+					// Construct absolute baseUrl from current location
+					const baseUrl = window.location.protocol + '//' + window.location.host + '/node_modules/@nutrient-sdk/viewer/dist/';
+
+					instance = await NutrientViewer.load({
+						document: pdfUrl,
+						container: '#pdfContainer',
+						baseUrl: baseUrl,
+					});
+
+					statusEl.textContent = 'PDF loaded successfully! Total pages: ' + instance.totalPageCount;
+					statusEl.className = 'status success';
+
+					extractBtn.disabled = false;
+					extractCurrentBtn.disabled = false;
+
+					console.log('Nutrient instance loaded:', instance);
+				} catch (error) {
+					console.error('Failed to load Nutrient:', error);
+					statusEl.textContent = 'Error: ' + error.message;
+					statusEl.className = 'status error';
+				}
+			}
+
+			// Extract text from all pages
+			async function extractAllText() {
+				if (!instance) return;
+
+				const statusEl = document.getElementById('status');
+				const outputEl = document.getElementById('extractedText');
+
+				statusEl.textContent = 'Extracting text from all pages...';
+				statusEl.className = 'status loading';
+
+				try {
+					const totalPages = instance.totalPageCount;
+					const allText = [];
+					let totalChars = 0;
+
+					for (let pageIndex = 0; pageIndex < totalPages; pageIndex++) {
+						const textLines = await instance.textLinesForPageIndex(pageIndex);
+						const pageText = textLines
+							.map(function(line) { return line.contents; })
+							.join('\n');
+
+						allText.push('--- Page ' + (pageIndex + 1) + ' ---\n' + pageText);
+						totalChars += pageText.length;
+					}
+
+					const fullText = allText.join('\n\n');
+					outputEl.textContent = fullText;
+
+					statusEl.textContent = 'Extracted ' + totalChars + ' characters from ' + totalPages + ' pages';
+					statusEl.className = 'status success';
+
+					console.log('Extraction complete:', totalChars, 'characters');
+				} catch (error) {
+					console.error('Extraction failed:', error);
+					statusEl.textContent = 'Extraction error: ' + error.message;
+					statusEl.className = 'status error';
+					outputEl.textContent = 'Error: ' + error.message;
+				}
+			}
+
+			// Extract text from current page only
+			async function extractCurrentPageText() {
+				if (!instance) return;
+
+				const statusEl = document.getElementById('status');
+				const outputEl = document.getElementById('extractedText');
+
+				try {
+					const currentPageIndex = instance.viewState.currentPageIndex;
+					const textLines = await instance.textLinesForPageIndex(currentPageIndex);
+					const pageText = textLines.map(function(line) { return line.contents; }).join('\n');
+
+					outputEl.textContent = '--- Page ' + (currentPageIndex + 1) + ' ---\n' + pageText;
+
+					statusEl.textContent = 'Extracted ' + pageText.length + ' characters from page ' + (currentPageIndex + 1);
+					statusEl.className = 'status success';
+				} catch (error) {
+					console.error('Extraction failed:', error);
+					statusEl.textContent = 'Extraction error: ' + error.message;
+					statusEl.className = 'status error';
+				}
+			}
+
+			// Set up event listeners
+			document.getElementById('extractBtn').addEventListener('click', extractAllText);
+			document.getElementById('extractCurrentBtn').addEventListener('click', extractCurrentPageText);
+
+			// Initialize on page load
+			initNutrient();
+		</script>
+	</body>
+</html>

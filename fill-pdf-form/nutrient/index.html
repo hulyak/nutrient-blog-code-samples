@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nutrient PDF Form Filling</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        #container {
+            width: 100vw;
+            height: 100vh;
+        }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+
+    <script type="module">
+        import Nutrient from 'https://cdn.cloud.nutrient.io/nutrient-viewer@latest/nutrient-viewer.js';
+
+        const LICENSE_KEY = 'pdf_live_TK4VeBhzh4K7hq0wBjJuvfiekbOb62TqwjGycFYqA5Y';
+        const PDF_URL = 'https://pdf-lib.js.org/assets/dod_character.pdf';
+
+        async function loadAndFillPdf() {
+            try {
+                // Load Nutrient
+                const instance = await Nutrient.load({
+                    container: '#container',
+                    document: PDF_URL,
+                    licenseKey: LICENSE_KEY,
+                });
+
+                console.log('PDF loaded successfully!');
+
+                // Get all form fields
+                const formFields = await instance.getFormFields();
+                console.log('Form fields found:', formFields.size);
+
+                // Define form field values
+                const formFieldValues = {
+                    'CharacterName 2': 'Template',
+                    'Age': '24 years',
+                    'Height': `5' 1"`,
+                    'Weight': '196 lbs',
+                    'Eyes': 'blue',
+                    'Skin': 'white',
+                    'Hair': 'brown',
+                    'Allies': [
+                        'Allies:',
+                        '  • Princess Daisy',
+                        '  • Princess Peach',
+                        '  • Rosalina',
+                        '  • Geno',
+                        '  • Luigi',
+                        '  • Donkey Kong',
+                        '  • Yoshi',
+                        '  • Diddy Kong',
+                        '',
+                        'Organizations:',
+                        '  • Italian Plumbers Association',
+                    ].join('\n'),
+                    'FactionName': `Mario's Emblem`,
+                    'Backstory': [
+                        'Mario is a fictional character in the Mario video game franchise,',
+                        'owned by Nintendo and created by Japanese video game designer Shigeru',
+                        'Miyamoto. Serving as the company\'s mascot and the eponymous',
+                        'protagonist of the series, Mario has appeared in over 200 video games',
+                        'since his creation. Depicted as a short, pudgy, Italian plumber who',
+                        'resides in the Mushroom Kingdom, his adventures generally center',
+                        'upon rescuing Princess Peach from the Koopa villain Bowser. His',
+                        'younger brother and sidekick is Luigi.',
+                    ].join('\n'),
+                    'Feat+Traits': [
+                        'Mario can use three basic power-ups:',
+                        '  • Super Mushroom: makes Mario grow larger',
+                        '  • Fire Flower: allows Mario to throw fireballs',
+                        '  • Starman: grants temporary invincibility',
+                    ].join('\n'),
+                    'Treasure': ['• Gold coins', '• Treasure chests'].join('\n'),
+                };
+
+                // Fill each form field
+                const formFieldsArray = formFields.toArray();
+                for (const field of formFieldsArray) {
+                    const fieldName = field.name;
+                    if (formFieldValues[fieldName] !== undefined) {
+                        const updatedField = field.set('value', formFieldValues[fieldName]);
+                        await instance.update(updatedField);
+                        console.log(`Filled field: ${fieldName}`);
+                    }
+                }
+
+                console.log('Form filling complete!');
+
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('container').innerHTML = `
+                    <div style="padding: 20px; color: red;">
+                        <h2>Error loading PDF</h2>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        loadAndFillPdf();
+    </script>
+</body>
+</html>

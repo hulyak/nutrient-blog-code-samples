@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+	<head></head>
+
+	<body>
+		<!-- Load the pdf.js library as a module -->
+		<script type="module">
+			import * as pdfjsLib from 'https://mozilla.github.io/pdf.js/build/pdf.mjs';
+
+			// Using the WRONG URL from tutorial line 53-55 (has typo pdf.mjs instead of pdf.js)
+			// pdfjsLib.GlobalWorkerOptions.workerSrc =
+			// 	'https://mozilla.github.io/pdf.mjs/build/pdf.worker.mjs';
+
+			// Using the CORRECT URL
+			pdfjsLib.GlobalWorkerOptions.workerSrc =
+				'https://mozilla.github.io/pdf.js/build/pdf.worker.mjs';
+
+			function extractText(pdfUrl) {
+				var pdf = pdfjsLib.getDocument(pdfUrl);
+				return pdf.promise.then(function (pdf) {
+					var totalPageCount = pdf.numPages;
+					var countPromises = [];
+					for (
+						var currentPage = 1;
+						currentPage <= totalPageCount;
+						currentPage++
+					) {
+						var page = pdf.getPage(currentPage);
+						countPromises.push(
+							page.then(function (page) {
+								var textContent = page.getTextContent();
+								return textContent.then(function (text) {
+									return text.items
+										.map(function (s) {
+											return s.str;
+										})
+										.join('');
+								});
+							}),
+						);
+					}
+
+					return Promise.all(countPromises).then(function (texts) {
+						return texts.join('');
+					});
+				});
+			}
+
+			const url =
+				'https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/web/compressed.tracemonkey-pldi-09.pdf';
+
+			document.body.innerHTML = '<p>Loading PDF...</p>';
+
+			extractText(url).then(
+				function (text) {
+					console.log('SUCCESS! Extracted text length: ' + text.length);
+					console.log('First 500 chars: ' + text.substring(0, 500));
+					document.body.innerHTML = '<h2>SUCCESS!</h2><p>Extracted ' + text.length + ' characters</p><pre>' + text.substring(0, 1000) + '...</pre>';
+				},
+				function (reason) {
+					console.error('ERROR:', reason);
+					document.body.innerHTML = '<h2 style="color:red">ERROR</h2><pre>' + reason + '</pre>';
+				},
+			);
+		</script>
+	</body>
+</html>

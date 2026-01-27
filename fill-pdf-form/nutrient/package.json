@@ -1,0 +1,17 @@
+{
+  "name": "nutrient",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@nutrient-sdk/dws-client-typescript": "^1.0.1",
+    "@nutrient-sdk/node": "^1.1.0",
+    "axios": "^1.13.2"
+  }
+}

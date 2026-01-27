@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Download Multiple Files Test</title>
+</head>
+<body>
+    <h1>Download Multiple Files Test</h1>
+    <button id="downloadBtn">Download Multiple Files</button>
+    <div id="output"></div>
+
+    <script>
+        document.getElementById('downloadBtn').addEventListener('click', async () => {
+            const output = document.getElementById('output');
+            output.innerHTML = 'Fetching...';
+
+            try {
+                const res = await fetch('http://localhost:4000/download-multiple', {
+                    mode: 'cors',
+                    headers: {
+                        Accept: 'multipart/form-data',
+                    },
+                });
+                const formData = await res.formData();
+                console.log(Array.from(formData.values()));
+
+                // Display results
+                const files = Array.from(formData.entries());
+                output.innerHTML = `<h2>Received ${files.length} files:</h2><ul>` +
+                    files.map(([key, file]) =>
+                        `<li><strong>${key}</strong>: ${file.name} (${file.size} bytes, ${file.type})</li>`
+                    ).join('') +
+                    '</ul>';
+            } catch (error) {
+                output.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+                console.error(error.message);
+            }
+        });
+    </script>
+</body>
+</html>

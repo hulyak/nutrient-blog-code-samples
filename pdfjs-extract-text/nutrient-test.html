@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Nutrient Text Extraction Test</title>
+    </head>
+    <body>
+        <!-- Element where PSPDFKit will be mounted. -->
+        <div id="pspdfkit" style="height: 100vh"></div>
+
+        <script src="assets/pspdfkit.js"></script>
+        <script>
+            async function extractText() {
+                try {
+                    const instance = await PSPDFKit.load({
+                        container: '#pspdfkit',
+                        document: 'document.pdf',
+                    });
+                    console.log('PSPDFKit loaded', instance);
+
+                    const pageIdx = 0;
+                    const textLines = await instance.textLinesForPageIndex(
+                        pageIdx,
+                    );
+                    const text = textLines.join('\n');
+                    console.log(text);
+                } catch (error) {
+                    console.error(error.message);
+                }
+            }
+
+            extractText();
+        </script>
+    </body>
+</html>

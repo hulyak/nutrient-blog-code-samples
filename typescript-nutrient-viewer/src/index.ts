@@ -30,8 +30,8 @@ function generatePKCS7({
                 if (!fileContents) {
                     throw new Error('No file contents provided.');
                 }
-                const buffer = forge.util.createBuffer(fileContents);
-                p7.content = buffer.getBytes();
+                // Use ByteBuffer constructor (exists at runtime, but not in @types/node-forge)
+                p7.content = new (forge.util as any).ByteBuffer(fileContents);
                 p7.addCertificate(certificate);
 
                 // Add the signer information.
@@ -49,7 +49,8 @@ function generatePKCS7({
                         },
                         {
                             type: forge.pki.oids['signingTime'],
-                            value: new Date().toISOString(),
+                            // Forge accepts Date objects at runtime (cast to satisfy types)
+                            value: new Date() as unknown as string,
                         },
                     ],
                 });
